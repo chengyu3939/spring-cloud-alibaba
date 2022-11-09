@@ -8,7 +8,7 @@
 
 [OpenFeign](https://github.com/spring-cloud/spring-cloud-openfeign)是一款声明式、模板化的HTTP客户端， Feign可以帮助我们更快捷、优雅地调用HTTP API。
 
-本项目专注于Sentinel与Feign的整合，关于Sentinel的更多特性可以查看[sentinel-core-example](https://github.com/alibaba/spring-cloud-alibaba/tree/master/spring-cloud-alibaba-examples/sentinel-example/sentinel-core-example)。
+本项目专注于Sentinel与Feign的整合，关于Sentinel的更多特性可以查看[sentinel-core-example](https://github.com/alibaba/spring-cloud-alibaba/tree/2021.x/spring-cloud-alibaba-examples/sentinel-example/sentinel-core-example)。
 
 ## 示例
 
@@ -16,19 +16,17 @@
 在启动示例进行演示之前，我们先了解一下 Feign 如何接入 Sentinel。
 **注意 本章节只是为了便于您理解接入方式，本示例代码中已经完成接入工作，您无需再进行修改。**
 
-1. 首先，修改 pom.xml 文件，引入 Sentinel starter 和 Dubbo starter。
+1. 首先，修改 pom.xml 文件，引入 Sentinel starter 和 Openfeign starter。
 
 ```xml
 <dependency>
     <groupId>org.springframework.cloud</groupId>
     <artifactId>spring-cloud-starter-openfeign</artifactId>
 </dependency>
-
 <dependency>
     <groupId>com.alibaba.cloud</groupId>
     <artifactId>spring-cloud-starter-alibaba-sentinel</artifactId>
 </dependency>
-
 ```
 2. 其次, 使用nacos 注册中心
 	

@@ -25,6 +25,7 @@ import java.util.Map;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 
+import com.alibaba.cloud.commons.lang.StringUtils;
 import org.w3c.dom.Document;
 import org.w3c.dom.NamedNodeMap;
 import org.w3c.dom.Node;
@@ -35,12 +36,11 @@ import org.springframework.boot.env.PropertiesPropertySourceLoader;
 import org.springframework.core.Ordered;
 import org.springframework.core.env.PropertySource;
 import org.springframework.core.io.Resource;
-import org.springframework.util.StringUtils;
 
 /**
  * Parsing for XML requires overwriting the default
  * {@link PropertiesPropertySourceLoader}, because it internally rigorously validates
- * ({@conde DOCTYPE}) THE XML in a way that makes it difficult to customize the
+ * ({@code DOCTYPE}) THE XML in a way that makes it difficult to customize the
  * configuration; at finally, make sure it's in the first place.
  *
  * @author zkz

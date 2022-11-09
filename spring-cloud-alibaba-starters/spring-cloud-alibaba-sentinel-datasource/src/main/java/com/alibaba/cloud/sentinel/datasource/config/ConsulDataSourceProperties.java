@@ -16,9 +16,9 @@
 
 package com.alibaba.cloud.sentinel.datasource.config;
 
+import com.alibaba.cloud.commons.lang.StringUtils;
 import com.alibaba.cloud.sentinel.datasource.factorybean.ConsulDataSourceFactoryBean;
 
-import org.springframework.util.StringUtils;
 
 /**
  * Consul Properties class Using by {@link DataSourcePropertiesConfiguration} and
@@ -41,6 +41,12 @@ public class ConsulDataSourceProperties extends AbstractDataSourceProperties {
 	 * consul server port.
 	 */
 	private int port = 8500;
+
+	/**
+	 * consul acl-token.
+	 */
+
+	private String token;
 
 	/**
 	 * data key in Redis.
@@ -95,4 +101,11 @@ public class ConsulDataSourceProperties extends AbstractDataSourceProperties {
 		this.waitTimeoutInSecond = waitTimeoutInSecond;
 	}
 
+	public String getToken() {
+		return token;
+	}
+
+	public void setToken(String token) {
+		this.token = token;
+	}
 }

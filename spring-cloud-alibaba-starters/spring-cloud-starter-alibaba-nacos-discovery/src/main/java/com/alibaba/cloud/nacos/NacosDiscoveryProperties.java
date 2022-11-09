@@ -17,6 +17,7 @@
 package com.alibaba.cloud.nacos;
 
 import java.net.Inet4Address;
+import java.net.Inet6Address;
 import java.net.InetAddress;
 import java.net.NetworkInterface;
 import java.util.Enumeration;
@@ -29,7 +30,9 @@ import java.util.regex.Pattern;
 
 import javax.annotation.PostConstruct;
 
+import com.alibaba.cloud.commons.lang.StringUtils;
 import com.alibaba.cloud.nacos.event.NacosDiscoveryInfoChangedEvent;
+import com.alibaba.cloud.nacos.utils.InetIPv6Util;
 import com.alibaba.nacos.api.naming.NamingService;
 import com.alibaba.nacos.api.naming.PreservedMetadataKeys;
 import com.alibaba.nacos.client.naming.utils.UtilAndComs;
@@ -44,7 +47,6 @@ import org.springframework.cloud.commons.util.InetUtils;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.env.ConfigurableEnvironment;
 import org.springframework.core.env.Environment;
-import org.springframework.util.StringUtils;
 
 import static com.alibaba.nacos.api.PropertyKeyConst.ACCESS_KEY;
 import static com.alibaba.nacos.api.PropertyKeyConst.CLUSTER_NAME;
@@ -63,6 +65,7 @@ import static com.alibaba.nacos.api.PropertyKeyConst.USERNAME;
  * @author <a href="mailto:mercyblitz@gmail.com">Mercy</a>
  * @author <a href="mailto:lyuzb@lyuzb.com">lyuzb</a>
  * @author <a href="mailto:78552423@qq.com">eshun</a>
+ * @author freeman
  */
 @ConfigurationProperties("spring.cloud.nacos.discovery")
 public class NacosDiscoveryProperties {
@@ -162,6 +165,13 @@ public class NacosDiscoveryProperties {
 	private String networkInterface = "";
 
 	/**
+	 * choose IPv4 or IPv6,if you don't set it will choose IPv4.
+	 * When IPv6 is chosen but no IPv6 can be found, system will automatically find IPv4 to ensure there is an
+	 * available service address.
+	 */
+	private String ipType = "IPv4";
+
+	/**
 	 * The port your want to register for your service instance, needn't to set it if the
 	 * auto detect port works well.
 	 */
@@ -208,10 +218,19 @@ public class NacosDiscoveryProperties {
 	private boolean ephemeral = true;
 
 	/**
+	 * Whether to enable nacos failure tolerance. If enabled, nacos will return cached
+	 * values when exceptions occur.
+	 */
+	private boolean failureToleranceEnabled;
+
+	/**
 	 * Throw exceptions during service registration if true, otherwise, log error
 	 * (defaults to true).
 	 */
 	private boolean failFast = true;
+
+	@Autowired
+	private InetIPv6Util inetIPv6Util;
 
 	@Autowired
 	private InetUtils inetUtils;
@@ -244,7 +263,20 @@ public class NacosDiscoveryProperties {
 		if (StringUtils.isEmpty(ip)) {
 			// traversing network interfaces if didn't specify a interface
 			if (StringUtils.isEmpty(networkInterface)) {
-				ip = inetUtils.findFirstNonLoopbackHostInfo().getIpAddress();
+				if ("IPv4".equalsIgnoreCase(ipType)) {
+					ip = inetUtils.findFirstNonLoopbackHostInfo().getIpAddress();
+				}
+				else if ("IPv6".equalsIgnoreCase(ipType)) {
+					ip = inetIPv6Util.findIPv6Address();
+					if (StringUtils.isEmpty(ip)) {
+						log.warn("There is no available IPv6 found. Spring Cloud Alibaba will automatically find IPv4.");
+						ip = inetUtils.findFirstNonLoopbackHostInfo().getIpAddress();
+					}
+				}
+				else {
+					throw new IllegalArgumentException(
+							"please checking the type of IP " + ipType);
+				}
 			}
 			else {
 				NetworkInterface netInterface = NetworkInterface
@@ -258,6 +290,7 @@ public class NacosDiscoveryProperties {
 				while (inetAddress.hasMoreElements()) {
 					InetAddress currentAddress = inetAddress.nextElement();
 					if (currentAddress instanceof Inet4Address
+							|| currentAddress instanceof Inet6Address
 							&& !currentAddress.isLoopbackAddress()) {
 						ip = currentAddress.getHostAddress();
 						break;
@@ -277,15 +310,16 @@ public class NacosDiscoveryProperties {
 			applicationEventPublisher
 					.publishEvent(new NacosDiscoveryInfoChangedEvent(this));
 		}
+		nacosServiceManager.setNacosDiscoveryProperties(this);
 	}
 
 	/**
-	 * recommend to use {@link NacosServiceManager#getNamingService(Properties)}.
+	 * recommend to use {@link NacosServiceManager#getNamingService()}.
 	 * @return NamingService
 	 */
 	@Deprecated
 	public NamingService namingServiceInstance() {
-		return nacosServiceManager.getNamingService(this.getNacosProperties());
+		return nacosServiceManager.getNamingService();
 	}
 
 	public String getEndpoint() {
@@ -354,6 +388,14 @@ public class NacosDiscoveryProperties {
 
 	public void setIp(String ip) {
 		this.ip = ip;
+	}
+
+	public String getIpType() {
+		return ipType;
+	}
+
+	public void setIpType(String ipType) {
+		this.ipType = ipType;
 	}
 
 	public String getNetworkInterface() {
@@ -492,6 +534,14 @@ public class NacosDiscoveryProperties {
 		this.ephemeral = ephemeral;
 	}
 
+	public boolean isFailureToleranceEnabled() {
+		return failureToleranceEnabled;
+	}
+
+	public void setFailureToleranceEnabled(boolean failureToleranceEnabled) {
+		this.failureToleranceEnabled = failureToleranceEnabled;
+	}
+
 	public boolean isFailFast() {
 		return failFast;
 	}
@@ -509,7 +559,12 @@ public class NacosDiscoveryProperties {
 			return false;
 		}
 		NacosDiscoveryProperties that = (NacosDiscoveryProperties) o;
-		return Objects.equals(serverAddr, that.serverAddr)
+		return watchDelay == that.watchDelay && Float.compare(that.weight, weight) == 0
+				&& registerEnabled == that.registerEnabled && port == that.port
+				&& secure == that.secure && instanceEnabled == that.instanceEnabled
+				&& ephemeral == that.ephemeral
+				&& failureToleranceEnabled == that.failureToleranceEnabled
+				&& Objects.equals(serverAddr, that.serverAddr)
 				&& Objects.equals(username, that.username)
 				&& Objects.equals(password, that.password)
 				&& Objects.equals(endpoint, that.endpoint)
@@ -517,8 +572,9 @@ public class NacosDiscoveryProperties {
 				&& Objects.equals(logName, that.logName)
 				&& Objects.equals(service, that.service)
 				&& Objects.equals(clusterName, that.clusterName)
-				&& Objects.equals(group, that.group) && Objects.equals(ip, that.ip)
-				&& Objects.equals(port, that.port)
+				&& Objects.equals(group, that.group)
+				&& Objects.equals(namingLoadCacheAtStart, that.namingLoadCacheAtStart)
+				&& Objects.equals(metadata, that.metadata) && Objects.equals(ip, that.ip)
 				&& Objects.equals(networkInterface, that.networkInterface)
 				&& Objects.equals(accessKey, that.accessKey)
 				&& Objects.equals(secretKey, that.secretKey)
@@ -532,14 +588,16 @@ public class NacosDiscoveryProperties {
 	public int hashCode() {
 		return Objects.hash(serverAddr, username, password, endpoint, namespace,
 				watchDelay, logName, service, weight, clusterName, group,
-				namingLoadCacheAtStart, registerEnabled, ip, networkInterface, port,
-				secure, accessKey, secretKey, heartBeatInterval, heartBeatTimeout,
-				ipDeleteTimeout, instanceEnabled, ephemeral, failFast);
+				namingLoadCacheAtStart, metadata, registerEnabled, ip, networkInterface,
+				port, secure, accessKey, secretKey, heartBeatInterval, heartBeatTimeout,
+				ipDeleteTimeout, instanceEnabled, ephemeral, failureToleranceEnabled,
+				failFast);
 	}
 
 	@Override
 	public String toString() {
 		return "NacosDiscoveryProperties{" + "serverAddr='" + serverAddr + '\''
+				+ ", username='" + username + '\'' + ", password='" + password + '\''
 				+ ", endpoint='" + endpoint + '\'' + ", namespace='" + namespace + '\''
 				+ ", watchDelay=" + watchDelay + ", logName='" + logName + '\''
 				+ ", service='" + service + '\'' + ", weight=" + weight
@@ -550,6 +608,9 @@ public class NacosDiscoveryProperties {
 				+ ", port=" + port + ", secure=" + secure + ", accessKey='" + accessKey
 				+ '\'' + ", secretKey='" + secretKey + '\'' + ", heartBeatInterval="
 				+ heartBeatInterval + ", heartBeatTimeout=" + heartBeatTimeout
+				+ ", ipDeleteTimeout=" + ipDeleteTimeout + ", instanceEnabled="
+				+ instanceEnabled + ", ephemeral=" + ephemeral
+				+ ", failureToleranceEnabled=" + failureToleranceEnabled + '}'
 				+ ", ipDeleteTimeout=" + ipDeleteTimeout + ", failFast=" + failFast + '}';
 	}
 
@@ -560,7 +621,7 @@ public class NacosDiscoveryProperties {
 					.resolvePlaceholders("${spring.cloud.nacos.discovery.server-addr:}");
 			if (StringUtils.isEmpty(serverAddr)) {
 				serverAddr = env.resolvePlaceholders(
-						"${spring.cloud.nacos.server-addr:localhost:8848}");
+						"${spring.cloud.nacos.server-addr:127.0.0.1:8848}");
 			}
 			this.setServerAddr(serverAddr);
 		}

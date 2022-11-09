@@ -27,16 +27,16 @@ import reactor.core.publisher.Mono;
 
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.cloud.client.ServiceInstance;
 import org.springframework.cloud.client.discovery.DiscoveryClient;
 import org.springframework.cloud.client.discovery.EnableDiscoveryClient;
+import org.springframework.cloud.client.loadbalancer.DefaultResponse;
+import org.springframework.cloud.client.loadbalancer.EmptyResponse;
 import org.springframework.cloud.client.loadbalancer.LoadBalanced;
-import org.springframework.cloud.client.loadbalancer.reactive.DefaultResponse;
-import org.springframework.cloud.client.loadbalancer.reactive.EmptyResponse;
-import org.springframework.cloud.client.loadbalancer.reactive.Request;
-import org.springframework.cloud.client.loadbalancer.reactive.Response;
+import org.springframework.cloud.client.loadbalancer.Response;
 import org.springframework.cloud.loadbalancer.annotation.LoadBalancerClient;
 import org.springframework.cloud.loadbalancer.core.NoopServiceInstanceListSupplier;
 import org.springframework.cloud.loadbalancer.core.ReactorServiceInstanceLoadBalancer;
@@ -78,8 +78,7 @@ public class ConsumerSCLBApplication {
 	}
 
 	@Configuration
-	@LoadBalancerClient(value = "service-provider",
-			configuration = MyLoadBalancerConfiguration.class)
+	@LoadBalancerClient(value = "service-provider", configuration = MyLoadBalancerConfiguration.class)
 	class MySCLBConfiguration {
 
 	}
@@ -104,8 +103,16 @@ public class ConsumerSCLBApplication {
 		}
 
 		@Override
-		public Mono<Response<ServiceInstance>> choose(Request request) {
-			log.info("random spring cloud loadbalacer active -.-");
+		public Mono<Response<ServiceInstance>> choose(
+				org.springframework.cloud.client.loadbalancer.Request request) {
+			ServiceInstanceListSupplier supplier = serviceInstanceListSupplierProvider
+					.getIfAvailable(NoopServiceInstanceListSupplier::new);
+
+			return supplier.get().next().map(this::getInstanceResponse);
+		}
+
+		@Override
+		public Mono<Response<ServiceInstance>> choose() {
 			ServiceInstanceListSupplier supplier = serviceInstanceListSupplierProvider
 					.getIfAvailable(NoopServiceInstanceListSupplier::new);
 			return supplier.get().next().map(this::getInstanceResponse);
@@ -120,11 +127,9 @@ public class ConsumerSCLBApplication {
 
 			return new DefaultResponse(instance);
 		}
-
 	}
 
-	@FeignClient(name = "service-provider", fallback = EchoServiceFallback.class,
-			configuration = FeignConfiguration.class)
+	@FeignClient(name = "service-provider", fallback = EchoServiceFallback.class, configuration = FeignConfiguration.class)
 	public interface EchoService {
 
 		@GetMapping("/echo/{str}")
@@ -157,10 +162,19 @@ public class ConsumerSCLBApplication {
 		@Autowired
 		private DiscoveryClient discoveryClient;
 
+		@Value("${spring.cloud.loadbalancer.zone:null}")
+		private String zone;
+
 		@GetMapping("/echo-rest/{str}")
 		public String rest(@PathVariable String str) {
 			return restTemplate.getForObject("http://service-provider/echo/" + str,
 					String.class);
+		}
+
+		@GetMapping("/zone")
+		public String zone() {
+			return "consumer zone " + zone + "\n" + restTemplate
+					.getForObject("http://service-provider/zone", String.class);
 		}
 
 		@GetMapping("/echo-feign/{str}")

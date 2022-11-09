@@ -21,9 +21,8 @@ import java.util.Collections;
 
 import com.alibaba.csp.sentinel.slots.block.RuleConstant;
 import com.alibaba.csp.sentinel.slots.block.degrade.DegradeRule;
-import org.junit.Before;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import reactor.test.StepVerifier;
@@ -38,31 +37,27 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Service;
-import org.springframework.test.annotation.DirtiesContext;
-import org.springframework.test.context.junit4.SpringRunner;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import static com.alibaba.cloud.circuitbreaker.sentinel.ReactiveSentinelCircuitBreakerIntegrationTest.Application;
 import static org.springframework.boot.test.context.SpringBootTest.WebEnvironment.RANDOM_PORT;
 
 /**
  * @author Ryan Baxter
  */
-@RunWith(SpringRunner.class)
-@SpringBootTest(webEnvironment = RANDOM_PORT,
-		classes = ReactiveSentinelCircuitBreakerIntegrationTest.Application.class,
-		properties = { "spring.cloud.discovery.client.health-indicator.enabled=false" })
-@DirtiesContext
+@SpringBootTest(webEnvironment = RANDOM_PORT, classes = Application.class, properties = {
+		"spring.cloud.discovery.client.health-indicator.enabled=false" })
 public class ReactiveSentinelCircuitBreakerIntegrationTest {
 
 	@LocalServerPort
 	private int port = 0;
 
 	@Autowired
-	private ReactiveSentinelCircuitBreakerIntegrationTest.Application.DemoControllerService service;
+	private Application.DemoControllerService service;
 
-	@Before
+	@BeforeEach
 	public void setup() {
 		service.setPort(port);
 	}

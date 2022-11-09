@@ -73,6 +73,20 @@ public class NacosConfigApplication {
 }
 ----
 
+NOTE: 注意当您```spring-cloud-alibaba```的版本为 ````2021.1```时,由于```nacos```获取配置时```bootstrap.yml ```文件将先于```application.yml```文件加载.
+根据spring的官方文档中提及 [bootstrap](https://docs.spring.io/spring-cloud-config/docs/current/reference/html/#config-first-bootstrap)
+为解决此问题 我们建议您在项目根```pom.xml```文件中加上如下依赖
+
+[source,xml]
+----
+<dependency>
+    <groupId>org.springframework.cloud</groupId>
+    <artifactId>spring-cloud-starter-bootstrap</artifactId>
+    <version>3.1.1</version>
+</dependency>
+----
+
+
 在运行此 NacosConfigApplication 之前， 必须使用 `bootstrap.properties` 配置文件来配置 Nacos Server 地址，例如：
 
 .bootstrap.properties
@@ -281,7 +295,7 @@ NOTE: 该配置必须放在 bootstrap.properties 文件中。并且在添加配�
 
 === 支持自定义扩展的 Data Id 配置
 
-Nacos Config 从 0.2.1 版本后，可支持自定义 Data Id 的配置。关于这部分详细的设计可参考 https://github.com/spring-cloud-incubator/spring-cloud-alibaba/issues/141[这里]。
+Nacos Config 从 0.2.1 版本后，可支持自定义 Data Id 的配置。关于这部分详细的设计可参考 https://github.com/alibaba/spring-cloud-alibaba/issues/141[这里]。
 一个完整的配置案例如下所示：
 
 [source,properties]
@@ -348,13 +362,7 @@ Nacos Config 目前提供了三种配置能力从 Nacos 拉取相关的配置
 * B: 通过 `spring.cloud.nacos.config.ext-config[n].data-id` 的方式支持多个扩展 Data Id 的配置
 * C: 通过内部相关规则(应用名、应用名+ Profile )自动生成相关的 Data Id 配置
 
-当三种方式共同使用时，他们的一个优先级关系是:
-
-->A为优先级最高的
-
-->B的优先级低于A，
-
-->C的优先级是最低的
+当三种方式共同使用时，他们的一个优先级关系是: A < B < C
 
 === Nacos Config 对外暴露的 Endpoint
 

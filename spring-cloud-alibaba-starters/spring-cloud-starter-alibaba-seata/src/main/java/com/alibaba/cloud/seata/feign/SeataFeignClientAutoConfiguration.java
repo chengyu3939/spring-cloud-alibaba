@@ -40,14 +40,6 @@ public class SeataFeignClientAutoConfiguration {
 
 	@Bean
 	@Scope("prototype")
-	@ConditionalOnClass(name = "com.netflix.hystrix.HystrixCommand")
-	@ConditionalOnProperty(name = "feign.hystrix.enabled", havingValue = "true")
-	Feign.Builder feignHystrixBuilder(BeanFactory beanFactory) {
-		return SeataHystrixFeignBuilder.builder(beanFactory);
-	}
-
-	@Bean
-	@Scope("prototype")
 	@ConditionalOnClass(name = "com.alibaba.csp.sentinel.SphU")
 	@ConditionalOnProperty(name = "feign.sentinel.enabled", havingValue = "true")
 	Feign.Builder feignSentinelBuilder(BeanFactory beanFactory) {
@@ -65,13 +57,13 @@ public class SeataFeignClientAutoConfiguration {
 	protected static class FeignBeanPostProcessorConfiguration {
 
 		@Bean
-		SeataBeanPostProcessor seataBeanPostProcessor(
+		static SeataBeanPostProcessor seataBeanPostProcessor(
 				SeataFeignObjectWrapper seataFeignObjectWrapper) {
 			return new SeataBeanPostProcessor(seataFeignObjectWrapper);
 		}
 
 		@Bean
-		SeataContextBeanPostProcessor seataContextBeanPostProcessor(
+		static SeataContextBeanPostProcessor seataContextBeanPostProcessor(
 				BeanFactory beanFactory) {
 			return new SeataContextBeanPostProcessor(beanFactory);
 		}
